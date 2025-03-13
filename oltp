@@ -1,0 +1,33 @@
+otelcol.receiver.otlp "example" {
+  grpc {
+    endpoint = "127.0.0.1:4317"  # gRPC endpoint for incoming OTLP data
+  }
+
+  http {
+    endpoint = "127.0.0.1:4318"  # HTTP endpoint for incoming OTLP data
+  }
+
+  output {
+    metrics = [otelcol.processor.batch.example.input]  # Output metrics to the batch processor
+    # No logs or traces output in this configuration
+  }
+}
+
+otelcol.processor.batch "example" {
+  output {
+    metrics = [otelcol.exporter.tempo.metrics.input]  # Send metrics to Tempo
+    # No traces or logs output in this configuration
+  }
+}
+
+# Tempo exporter configuration (using HTTP for metrics)
+otelcol.exporter.tempo "metrics" {
+  endpoint = "http://10.0.34.195:3200/metrics"  # Tempo's HTTP metrics endpoint
+}
+
+# Optional: OTLP Exporter for OTLP-compatible services (if needed)
+otelcol.exporter.otlp "default" {
+  client {
+    endpoint = "http://10.0.34.195:4317"  # OTLP endpoint for external services (adjust as needed)
+  }
+}
