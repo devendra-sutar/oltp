@@ -1,17 +1,16 @@
 // Sample config for Alloy.
-//
 // For a full configuration reference, see https://grafana.com/docs/alloy
 logging {
   level = "warn"
 }
 
-// Existing Unix exporter for system metrics
+// Unix exporter for system metrics
 prometheus.exporter.unix "default" {
   include_exporter_metrics = true
   disable_collectors       = ["mdadm"]
 }
 
-// Existing scrape configuration for Unix and Alloy self-metrics
+// Scrape configuration for Unix and Alloy self-metrics
 prometheus.scrape "default" {
   targets = array.concat(
     prometheus.exporter.unix.default.targets,
@@ -24,7 +23,7 @@ prometheus.scrape "default" {
   forward_to = [prometheus.remote_write.default.receiver]
 }
 
-// Remote write to send existing scraped metrics to Prometheus
+// Remote write to send scraped metrics to Prometheus
 prometheus.remote_write "default" {
   endpoint {
     url = "http://10.0.34.195:9090/api/v1/write"
