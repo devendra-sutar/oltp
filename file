@@ -1,4 +1,3 @@
-  GNU nano 7.2                                                             /etc/alloy/config.alloy                                                                      
 // Sample config for Alloy.
 //
 // For a full configuration reference, see https://grafana.com/docs/alloy
@@ -6,11 +5,13 @@ logging {
   level = "warn"
 }
 
+// Existing Unix exporter for system metrics
 prometheus.exporter.unix "default" {
   include_exporter_metrics = true
   disable_collectors       = ["mdadm"]
 }
 
+// Existing scrape configuration for Unix and Alloy self-metrics
 prometheus.scrape "default" {
   targets = array.concat(
     prometheus.exporter.unix.default.targets,
@@ -20,9 +21,52 @@ prometheus.scrape "default" {
       __address__ = "127.0.0.1:12345",
     }],
   )
+  forward_to = [prometheus.remote_write.default.receiver]
+}
 
-  forward_to = [
-  // TODO: components to forward metrics to (like prometheus.remote_write or
-  // prometheus.relabel).
+// Remote write to send existing scraped metrics to Prometheus
+prometheus.remote_write "default" {
+  endpoint {
+    url = "http://10.0.34.195:9090/api/v1/write"
+  }
+}
+
+// OTLP Receiver for receiving application metrics
+otelcol.receiver.otlp "example" {
+  grpc {
+    endpoint = "0.0.0.0:4317"
+  }
+  http {
+    endpoint = "0.0.0.0:4318"
+  }
+  output {
+    metrics = [otelcol.processor.batch.example.input]
+  }
+}
+
+// Batch Processor to batch the application metrics
+otelcol.processor.batch "example" {
+  output {
+    metrics = [otelcol.exporter.prometheusremotewrite.example.input]
+  }
+}
+
+// Prometheus Remote Write Exporter to send application metrics to Prometheus
+otelcol.exporter.prometheusremotewrite "example" {
+  endpoint = "http://10.0.34.195:9090/api/v1/write"
+}
+
+// Prometheus Scrape component to scrape Tempo's operational metrics
+prometheus.scrape "tempo" {
+  targets = [
+    { "__address__" = "10.0.34.195:3200" },
   ]
+  forward_to = [prometheus.remote_write.tempo_metrics.receiver]
+}
+
+// Prometheus Remote Write to send Tempo's scraped metrics to Prometheus
+prometheus.remote_write "tempo_metrics" {
+  endpoint {
+    url = "http://10.0.34.195:9090/api/v1/write"
+  }
 }
