@@ -1,23 +1,39 @@
+// OTLP Receiver for receiving application metrics
 otelcol.receiver.otlp "example" {
   grpc {
-    endpoint = "127.0.0.1:4317"
+    endpoint = "0.0.0.0:4317"
   }
-
   http {
-    endpoint = "127.0.0.1:4318"
+    endpoint = "0.0.0.0:4318"
   }
-
   output {
     metrics = [otelcol.processor.batch.example.input]
   }
 }
 
+// Batch Processor to batch the metrics
 otelcol.processor.batch "example" {
   output {
-    metrics = [otelcol.exporter.tempo.metrics.input]
+    metrics = [otelcol.exporter.prometheusremotewrite.example.input]
   }
 }
 
-otelcol.exporter.tempo "metrics" {
-  endpoint = "http://10.0.34.195:3200/metrics"
+// Prometheus Remote Write Exporter to send application metrics to Prometheus
+otelcol.exporter.prometheusremotewrite "example" {
+  endpoint = "http://10.0.34.195:9090/api/v1/write"
+}
+
+// Prometheus Scrape component to scrape Tempo's operational metrics
+prometheus.scrape "tempo" {
+  targets = [
+    { "__address__" = "10.0.34.195:3200" },
+  ]
+  forward_to = [prometheus.remote_write.tempo_metrics.receiver]
+}
+
+// Prometheus Remote Write to send Tempo's scraped metrics to Prometheus
+prometheus.remote_write "tempo_metrics" {
+  endpoint {
+    url = "http://10.0.34.195:9090/api/v1/write"
+  }
 }
